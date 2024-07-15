@@ -25,10 +25,33 @@ log_counts() {
     log_message "Current folder count: $folder_count"
 }
 
-# Function to normalize filenames for comparison
+# Function to normalize names for comparison
 normalize_name() {
     local name="$1"
     echo "$name" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' ' '
+}
+
+# Function to compare and remove duplicates
+remove_duplicates() {
+    declare -A name_map
+    local duplicate_count=0
+
+    while IFS= read -r -d '' item; do
+        local base_name
+        base_name=$(basename "$item")
+        norm_name=$(normalize_name "$base_name")
+
+        if [[ -n "${name_map[$norm_name]}" ]]; then
+            log_message "Removing duplicate: $item"
+            rm -rf "$item"
+            ((duplicate_count++))
+        else
+            log_message "Keeping: $item"
+            name_map["$norm_name"]="$item"
+        fi
+    done < <(find "$MUSIC_DIR" -mindepth 1 -print0 | sort -z -f)
+
+    log_message "Total duplicates removed: $duplicate_count"
 }
 
 # Check if music directory exists
@@ -46,31 +69,10 @@ log_message "Starting duplicate removal process."
 # Log initial counts
 log_counts
 
-# Find duplicate files based on normalized names, excluding @eaDir directories
-declare -A file_map
-declare -i duplicates_removed=0
+# Remove duplicates
+remove_duplicates
 
-while IFS= read -r -d '' file; do
-    if [[ "$file" != */@eaDir/* ]]; then
-        norm_name=$(normalize_name "$(basename "$file")")
-        if [[ -n "${file_map[$norm_name]}" ]]; then
-            current_file="${file_map[$norm_name]}"
-            if [[ "$file" =~ [[:space:]] ]]; then
-                log_message "Removing duplicate file: $current_file"
-                rm "$current_file"
-                file_map["$norm_name"]="$file"
-            else
-                log_message "Removing duplicate file: $file"
-                rm "$file"
-            fi
-            duplicates_removed+=1
-        else
-            file_map["$norm_name"]="$file"
-        fi
-    fi
-done < <(find "$MUSIC_DIR" -type f -print0)
-
-log_message "Duplicate removal process completed. Total duplicates removed: $duplicates_removed"
+log_message "Duplicate removal process completed."
 log_counts  # Log counts after removing duplicates
 
 # Remove empty directories and log their names, excluding @eaDir directories
