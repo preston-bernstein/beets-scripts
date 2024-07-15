@@ -6,7 +6,7 @@ This repository contains a collection of scripts designed to work with Beets, an
 
 ## Features
 
-- **Remove Duplicate Files**: Intelligent duplicate removal based on normalized filenames, handling - different delimiters (spaces, underscores, hyphens), and preferring filenames with spaces.
+- **Remove Duplicate Files**: Intelligent duplicate removal based on normalized filenames, handling different delimiters (spaces, underscores, hyphens), and preferring filenames with spaces.
 - **Organize Music Library**: Automatically organize your music files and directories according to specified rules.
 - **Log Management**: Generate detailed logs for each script execution, including file and folder counts before and after operations, and maintain historical logs with timestamps.
 - **Exclude System Directories**: Exclude special directories (e.g., @eaDir) from processing to avoid conflicts with system files.
@@ -14,9 +14,12 @@ This repository contains a collection of scripts designed to work with Beets, an
 ## Scripts
 
 1. **[remove_duplicates.sh](./remove_duplicates.sh)**
-- Removes duplicate audio files by normalizing filenames and preferring those with spaces.
-- Logs detailed information about the removal process and counts of files and folders.
-- Excludes system directories like @eaDir from processing.
+   - **Normalization Function**: Converts the name to lowercase, replaces non-alphanumeric characters with spaces, removes track numbers and disc numbers, and handles suffixes.
+   - **File Quality Function**: Assigns a quality score to each file type (e.g., FLAC higher than MP3).
+   - **Consolidate Album Tracks**: Processes each album directory to remove duplicate tracks, preferring higher quality versions, and moves the kept tracks to a consolidated directory.
+   - **Consolidate Duplicates Across Albums**: Processes each album directory, normalizing the album names to compare and ensure duplicates are handled, preferring "Deluxe Edition" versions if available, and consolidates tracks.
+   - Logs detailed information about the removal process and counts of files and folders.
+   - Excludes system directories like @eaDir from processing.
 
 ## How to Use
 
