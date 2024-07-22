@@ -80,14 +80,14 @@ consolidate_album_tracks() {
         target_dir="$album_dir/Disc $disc_number"
         mkdir -p "$target_dir"
 
-        if [[ -n "${track_map[$disc_number][$norm_track_name]}" ]]; then
-            existing_track="${track_map[$disc_number][$norm_track_name]}"
+        if [[ -n "${track_map[$disc_number,$norm_track_name]}" ]]; then
+            existing_track="${track_map[$disc_number,$norm_track_name]}"
             existing_quality=$(get_file_quality "$existing_track")
             if (( track_quality > existing_quality )); then
                 log_message "$GREEN" "Replacing lower quality track: $existing_track with higher quality track: $track"
                 mv "$track" "$target_dir/"
                 rm -rf "$existing_track"
-                track_map[$disc_number][$norm_track_name]="$target_dir/$(basename "$track")"
+                track_map[$disc_number,$norm_track_name]="$target_dir/$(basename "$track")"
             else
                 log_message "$YELLOW" "Keeping existing higher quality track: $existing_track, removing lower quality track: $track"
                 rm -rf "$track"
@@ -95,7 +95,7 @@ consolidate_album_tracks() {
         else
             log_message "$BLUE" "Keeping track: $track"
             mv "$track" "$target_dir/"
-            track_map[$disc_number][$norm_track_name]="$target_dir/$(basename "$track")"
+            track_map[$disc_number,$norm_track_name]="$target_dir/$(basename "$track")"
         fi
     done < <(find "$album_dir" -type f -print0)
 }
@@ -114,25 +114,23 @@ consolidate_duplicates() {
 
         log_message "$MAGENTA" "Processing album: $album_name by $artist_name"
 
-        if [[ -n "${album_map[$norm_artist_name][$norm_album_name]}" ]]; then
+        if [[ -n "${album_map[$norm_artist_name,$norm_album_name]}" ]]; then
             # Check if the current album is a deluxe edition and should be prioritized
             if [[ "$album_name" == *"Deluxe Edition"* ]]; then
-                log_message "$MAGENTA" "Removing non-deluxe album: ${album_map[$norm_artist_name][$norm_album_name]}"
-                rm -rf "${album_map[$norm_artist_name][$norm_album_name]}"
-                album_map[$norm_artist_name][$norm_album_name]="$item"
+                log_message "$MAGENTA" "Removing non-deluxe album: ${album_map[$norm_artist_name,$norm_album_name]}"
+                rm -rf "${album_map[$norm_artist_name,$norm_album_name]}"
+                album_map[$norm_artist_name,$norm_album_name]="$item"
             else
                 log_message "$MAGENTA" "Removing album: $item"
                 rm -rf "$item"
             fi
         else
-            album_map[$norm_artist_name][$norm_album_name]="$item"
+            album_map[$norm_artist_name,$norm_album_name]="$item"
         fi
     done < <(find "$MUSIC_DIR" -mindepth 2 -maxdepth 2 -type d -print0 | sort -z -f)
 
-    for artist_dir in "${!album_map[@]}"; do
-        for album_dir in "${album_map[$artist_dir][@]}"; do
-            consolidate_album_tracks "$album_dir"
-        done
+    for key in "${!album_map[@]}"; do
+        consolidate_album_tracks "${album_map[$key]}"
     done
 }
 
