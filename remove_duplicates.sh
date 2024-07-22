@@ -3,6 +3,7 @@
 # Define paths
 MUSIC_DIR="/music"
 CONFIG_DIR="/config"
+CONSOLIDATE_DIR="$MUSIC_DIR/consolidated"
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 LOG_FILE="$CONFIG_DIR/remove_duplicates_$TIMESTAMP.log"
 
@@ -45,9 +46,6 @@ get_file_quality() {
 consolidate_album_tracks() {
     local album_dir="$1"
     declare -A track_map
-    local consolidate_dir="$MUSIC_DIR/consolidated"
-
-    mkdir -p "$consolidate_dir"
 
     while IFS= read -r -d '' track; do
         local track_name
@@ -60,7 +58,7 @@ consolidate_album_tracks() {
             existing_quality=$(get_file_quality "$existing_track")
             if (( track_quality > existing_quality )); then
                 log_message "Replacing lower quality track: $existing_track with higher quality track: $track"
-                mv "$track" "$consolidate_dir"
+                mv "$track" "$CONSOLIDATE_DIR"
                 rm -rf "$existing_track"
             else
                 log_message "Keeping existing higher quality track: $existing_track, removing lower quality track: $track"
@@ -68,7 +66,7 @@ consolidate_album_tracks() {
             fi
         else
             log_message "Keeping track: $track"
-            mv "$track" "$consolidate_dir"
+            mv "$track" "$CONSOLIDATE_DIR"
             track_map["$norm_track_name"]="$track"
         fi
     done < <(find "$album_dir" -type f -print0)
@@ -88,18 +86,19 @@ consolidate_duplicates() {
             if [[ "$album_name" == *"Deluxe Edition"* ]]; then
                 log_message "Removing non-deluxe album: ${album_map[$norm_album_name]}"
                 rm -rf "${album_map[$norm_album_name]}"
-                log_message "Consolidating deluxe album: $item"
-                consolidate_album_tracks "$item"
+                album_map["$norm_album_name"]="$item"
             else
-                log_message "Consolidating album: $item"
-                consolidate_album_tracks "$item"
+                log_message "Removing album: $item"
+                rm -rf "$item"
             fi
         else
-            log_message "Consolidating album: $item"
-            consolidate_album_tracks "$item"
             album_map["$norm_album_name"]="$item"
         fi
     done < <(find "$MUSIC_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z -f)
+
+    for album_dir in "${album_map[@]}"; do
+        consolidate_album_tracks "$album_dir"
+    done
 }
 
 # Check if music directory exists
@@ -111,6 +110,9 @@ fi
 if [ ! -d "$CONFIG_DIR" ]; then
     handle_error "Config directory '$CONFIG_DIR' not found."
 fi
+
+# Check if consolidated directory exists
+mkdir -p "$CONSOLIDATE_DIR"
 
 log_message "Starting duplicate removal process."
 
