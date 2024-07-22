@@ -2,7 +2,7 @@
 
 # Define paths
 MUSIC_DIR="/music"
-CONFIG_DIR="/config"
+CONFIG_DIR="/config/logs"
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 LOG_FILE="$CONFIG_DIR/remove_duplicates_$TIMESTAMP.log"
 
@@ -72,6 +72,7 @@ consolidate_album_tracks() {
     while IFS= read -r -d '' track; do
         local track_name
         track_name=$(basename "$track")
+        log_message "$BLUE" "Processing track: $track_name"
         norm_track_name=$(normalize_name "$track_name")
         track_quality=$(get_file_quality "$track")
         disc_number=$(get_disc_number "$track_name")
@@ -110,6 +111,8 @@ consolidate_duplicates() {
         artist_name=$(basename "$(dirname "$item")")
         norm_album_name=$(normalize_name "$album_name")
         norm_artist_name=$(normalize_name "$artist_name")
+
+        log_message "$MAGENTA" "Processing album: $album_name by $artist_name"
 
         if [[ -n "${album_map[$norm_artist_name][$norm_album_name]}" ]]; then
             # Check if the current album is a deluxe edition and should be prioritized
