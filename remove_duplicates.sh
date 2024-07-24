@@ -20,7 +20,7 @@ WHITE="\033[37m"
 log_message() {
     local color="$1"
     local message="$2"
-    echo -e "$(date '+%Y-%m-%d %H:%M:%S') - ${color}${message}${RESET}" >> "$LOG_FILE"
+    echo -e "$(date '+%Y-%m-%d %H:%M:%S') - ${color}${message}${RESET}" | tee -a "$LOG_FILE"
 }
 
 # Function to handle errors
