@@ -63,38 +63,11 @@ get_disc_number() {
     fi
 }
 
-# Function to format the track name according to the FileBot naming convention
-format_track_name() {
-    local artist="$1"
-    local album="$2"
-    local year="$3"
-    local disc="$4"
-    local track="$5"
-    local title="$6"
-    local codec="$7"
-    local format="$8"
-    local khz="$9"
-    local bitdepth="${10}"
-    local bitrate="${11}"
-
-    local formatted_name="${artist:-Unknown Artist}/${album:-Unknown Album}"
-    if [[ -n "$year" ]]; then
-        formatted_name+=" (${year})"
-    fi
-    formatted_name+="/"
-    if [[ -n "$disc" ]]; then
-        formatted_name+="CD ${disc}/"
-    fi
-    formatted_name+="${track:-00} - ${title:-Unknown Title} - (${codec:-N/A} ${format:-N/A} ${khz:-N/A} ${bitdepth:-N/A}bit ${bitrate:-N/A})"
-    echo "$formatted_name"
-}
-
 # Function to compare and consolidate tracks within the same album context
 consolidate_album_tracks() {
     local album_dir="$1"
     local artist_name=$(basename "$(dirname "$album_dir")")
     local album_name=$(basename "$album_dir")
-    local year=$(echo "$album_name" | grep -oP '\(\K[0-9]{4}(?=\))')
 
     declare -A track_map
 
@@ -105,13 +78,6 @@ consolidate_album_tracks() {
         norm_track_name=$(normalize_name "$track_name")
         track_quality=$(get_file_quality "$track")
         disc_number=$(get_disc_number "$track_name")
-        track_num=$(printf "%02d" "${track_name%% *}")
-        title=$(echo "$track_name" | sed -E 's/[0-9]{2} - (.*) - \(.*/\1/')
-
-        formatted_name=$(format_track_name "$artist_name" "$album_name" "$year" "$disc_number" "$track_num" "$title" "aco" "af" "khz" "bitdepth" "abr")
-
-        target_dir="$MUSIC_DIR/$formatted_name"
-        mkdir -p "$(dirname "$target_dir")"
 
         track_key="${disc_number}_${norm_track_name}"
 
@@ -120,17 +86,15 @@ consolidate_album_tracks() {
             existing_quality=$(get_file_quality "$existing_track")
             if (( track_quality > existing_quality )); then
                 log_message "$GREEN" "Replacing lower quality track: $existing_track with higher quality track: $track"
-                mv "$track" "$target_dir"
-                rm -rf "$existing_track"
-                track_map[$track_key]="$target_dir"
+                mv "$track" "$existing_track"
+                track_map[$track_key]="$existing_track"
             else
                 log_message "$YELLOW" "Keeping existing higher quality track: $existing_track, removing lower quality track: $track"
                 rm -rf "$track"
             fi
         else
             log_message "$BLUE" "Keeping track: $track"
-            mv "$track" "$target_dir"
-            track_map[$track_key]="$target_dir"
+            track_map[$track_key]="$track"
         fi
     done < <(find "$album_dir" -type f -print0)
 }
