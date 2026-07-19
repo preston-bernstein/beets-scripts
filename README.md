@@ -1,112 +1,71 @@
-# Beets Scripts for Music Library Management
+# beets-scripts
 
-## Overview
+A duplicate-removal script for music libraries managed with [Beets](https://beets.io/), designed to run inside a [linuxserver/beets](https://docs.linuxserver.io/images/docker-beets/) Docker container.
 
-This repository contains a collection of scripts designed to work with Beets, an open-source music library manager. These scripts enhance the functionality of Beets by providing automated processes for removing duplicate files, organizing your music library, and maintaining a clean and efficient directory structure.
+[![CI](https://github.com/preston-bernstein/beets-scripts/actions/workflows/ci.yml/badge.svg)](https://github.com/preston-bernstein/beets-scripts/actions/workflows/ci.yml)  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Features
+## What it does
 
-- **Remove Duplicate Files**: Intelligent duplicate removal based on normalized filenames, handling different delimiters (spaces, underscores, hyphens), and preferring filenames with spaces.
-- **Organize Music Library**: Automatically organize your music files and directories according to specified rules.
-- **Log Management**: Generate detailed logs for each script execution, including file and folder counts before and after operations, and maintain historical logs with timestamps.
-- **Exclude System Directories**: Exclude special directories (e.g., @eaDir) from processing to avoid conflicts with system files.
+[`remove_duplicates.sh`](remove_duplicates.sh) walks a music library laid out as `Artist/Album/Track` and:
 
-## Scripts
+1. Normalizes track and album names (case, punctuation, track/disc numbers) so near-identical files compare equal regardless of naming quirks.
+2. Within an album, keeps the highest-quality copy of each track (FLAC > MP3 > other) and removes the rest.
+3. Across duplicate album directories for the same artist, keeps a "Deluxe Edition" copy over a standard one where both exist, otherwise keeps the first seen and removes the rest.
+4. Removes resulting empty directories, skipping Synology `@eaDir` system folders.
+5. Logs every action, with before/after file and folder counts, to a timestamped log file.
 
-1. **[remove_duplicates.sh](./remove_duplicates.sh)**
-   - **Normalization Function**: Converts the name to lowercase, replaces non-alphanumeric characters with spaces, removes track numbers and disc numbers, and handles suffixes.
-   - **File Quality Function**: Assigns a quality score to each file type (e.g., FLAC higher than MP3).
-   - **Consolidate Album Tracks**: Processes each album directory to remove duplicate tracks, preferring higher quality versions, and moves the kept tracks to a consolidated directory.
-   - **Consolidate Duplicates Across Albums**: Processes each album directory, normalizing the album names to compare and ensure duplicates are handled, preferring "Deluxe Edition" versions if available, and consolidates tracks.
-   - Logs detailed information about the removal process and counts of files and folders.
-   - Excludes system directories like @eaDir from processing.
+## Requirements
 
-## How to Use
+- `bash`
+- A music library at a known path, structured as `Artist/Album/Track.ext`
+- A writable log directory
 
-### Clone the Repository
+## Configuration
+
+Edit the path variables at the top of the script:
+
+| Variable | Default | Description |
+|---|---|---|
+| `MUSIC_DIR` | `/music` | Root of the music library to deduplicate |
+| `CONFIG_DIR` | `/config/logs` | Directory where timestamped run logs are written |
+
+## Usage
+
+### Standalone
 
 ```bash
-git clone https://github.com/yourusername/beets-scripts.git
-cd beets-scripts
+chmod +x remove_duplicates.sh
+MUSIC_DIR=/path/to/music CONFIG_DIR=/path/to/logs ./remove_duplicates.sh
 ```
 
-### Set Up Docker Environment
+(Set the variables directly in the script if your shell doesn't export them into it.)
 
-Ensure you have Docker installed and set up. Modify the provided Dockerfile and **`docker-compose.yml`** to suit your environment.
+### Inside a Beets Docker container
 
-- **Dockerfile**
+Run it against a running `linuxserver/beets` container that has your music volume mounted, either manually:
+
+```bash
+docker cp remove_duplicates.sh <container>:/config/remove_duplicates.sh
+docker exec -it <container> bash /config/remove_duplicates.sh
+```
+
+or on a schedule by baking it into a custom image with a cron entry, e.g.:
 
 ```Dockerfile
 FROM lscr.io/linuxserver/beets:latest
-
-# Copy the remove_duplicates.sh script into the container
 COPY remove_duplicates.sh /config/remove_duplicates.sh
 RUN chmod +x /config/remove_duplicates.sh
-
-# Add cron job
-RUN (crontab -l ; echo "0 3 * * * /config/remove_duplicates.sh") | crontab
-
+RUN (crontab -l ; echo "0 3 * * * /config/remove_duplicates.sh") | crontab -
 ENTRYPOINT ["cron", "-f"]
 ```
 
-- **docker-compose.yml**
-
-```yaml
-version: "3.3"
-services:
-  beets:
-    image: custom-beets:latest
-    container_name: Beets-Nord
-    network_mode: "service:nordvpn"
-    depends_on:
-      - nordvpn
-    volumes:
-      - /path/to/your/config:/config
-      - /path/to/your/music:/music
-      - /path/to/your/downloads:/downloads
-    environment:
-      - PUID=1029
-      - PGID=100
-      - TZ=Your_Timezone
-    mem_limit: 2g
-    cpu_shares: 1024
-    restart: always
-```
-
-### Build and Deploy
-
-Build the custom Docker image and deploy the Docker Compose stack.
+### Monitoring
 
 ```bash
-docker build -t custom-beets:latest .
-docker-compose up -d
+ls "$CONFIG_DIR"
+cat "$CONFIG_DIR"/remove_duplicates_*.log
 ```
-
-### Run the Script
-
-Execute the **`remove_duplicates.sh`** script manually or set it up to run periodically via cron.
-
-```bash
-docker exec -it Beets-Nord /config/remove_duplicates.sh
-```
-
-### Monitor Logs
-
-Check the log files generated in the **`/path/to/your/config`** directory:
-
-```bash
-ls /path/to/your/config
-cat /path/to/your/config/remove_duplicates_*.log
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues, fork the repository, and make pull requests to improve these scripts and add new functionality.
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-## Acknowledgements
-
-- [Beets](https://beets.io/?trk=public_post-text): The open-source music library manager used by these scripts.
-- [LinuxServer.io](https://www.linuxserver.io/): For the Beets Docker image.
+MIT — see [LICENSE](LICENSE).
