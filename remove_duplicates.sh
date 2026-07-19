@@ -14,7 +14,6 @@ YELLOW="\033[33m"
 BLUE="\033[34m"
 MAGENTA="\033[35m"
 CYAN="\033[36m"
-WHITE="\033[37m"
 
 # Function to log messages with color
 log_message() {
@@ -31,8 +30,10 @@ handle_error() {
 
 # Function to count and log files and folders
 log_counts() {
-    local file_count=$(find "$MUSIC_DIR" -type f | wc -l)
-    local folder_count=$(find "$MUSIC_DIR" -type d | wc -l)
+    local file_count
+    file_count=$(find "$MUSIC_DIR" -type f | wc -l)
+    local folder_count
+    folder_count=$(find "$MUSIC_DIR" -type d | wc -l)
     log_message "$CYAN" "Current file count: $file_count"
     log_message "$CYAN" "Current folder count: $folder_count"
 }
@@ -66,8 +67,10 @@ get_disc_number() {
 # Function to compare and consolidate tracks within the same album context
 consolidate_album_tracks() {
     local album_dir="$1"
-    local artist_name=$(basename "$(dirname "$album_dir")")
-    local album_name=$(basename "$album_dir")
+    local artist_name
+    artist_name=$(basename "$(dirname "$album_dir")")
+    local album_name
+    album_name=$(basename "$album_dir")
 
     declare -A track_map
 
